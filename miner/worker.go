@@ -960,13 +960,13 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 			localTxs[account] = txs
 		}
 	}
-	if len(localTxs) > 0 {
+	if len(localTxs) > 0 {  // 优先当前节点账户下的交易
 		txs := types.NewTransactionsByPriceAndNonce(w.current.signer, localTxs)
 		if w.commitTransactions(txs, w.coinbase, interrupt) {
 			return
 		}
 	}
-	if len(remoteTxs) > 0 {
+	if len(remoteTxs) > 0 {  // 其他节点同步过来的交易。按照gas price以及同账户的nonce来排序
 		txs := types.NewTransactionsByPriceAndNonce(w.current.signer, remoteTxs)
 		if w.commitTransactions(txs, w.coinbase, interrupt) {
 			return
