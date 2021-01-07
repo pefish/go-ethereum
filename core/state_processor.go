@@ -149,7 +149,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *commo
 		return nil, err
 	}
 	// Create a new context to be used in the EVM environment
-	blockContext := NewEVMBlockContext(header, bc, author)
+	blockContext := NewEVMBlockContext(header, bc, author)  // 新建一个虚拟机执行交易
 	vmenv := vm.NewEVM(blockContext, vm.TxContext{}, statedb, config, cfg)
 	return applyTransaction(msg, config, bc, author, gp, statedb, header, tx, usedGas, vmenv)
 }

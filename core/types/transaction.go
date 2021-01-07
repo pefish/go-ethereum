@@ -360,16 +360,16 @@ type TransactionsByPriceAndNonce struct {
 func NewTransactionsByPriceAndNonce(signer Signer, txs map[common.Address]Transactions) *TransactionsByPriceAndNonce {
 	// Initialize a price and received time based heap with the head transactions
 	heads := make(TxByPriceAndTime, 0, len(txs))
-	for from, accTxs := range txs {
-		heads = append(heads, accTxs[0])
+	for from, accTxs := range txs {  // accTxs中的交易是按照nonce排序好了的
+		heads = append(heads, accTxs[0])  // 每个账户下的第一笔交易放入heads中，体现了公平。如果这笔交易执行没有问题，则这个账户的下一笔同样会放入heads
 		// Ensure the sender address is from the signer
 		acc, _ := Sender(signer, accTxs[0])
-		txs[acc] = accTxs[1:]
+		txs[acc] = accTxs[1:]  // 从txs中移除掉放入head中的那笔交易
 		if from != acc {
 			delete(txs, from)
 		}
 	}
-	heap.Init(&heads)
+	heap.Init(&heads) // 对heads中的交易按照price和time排序
 
 	// Assemble and return the transaction set
 	return &TransactionsByPriceAndNonce{

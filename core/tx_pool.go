@@ -478,14 +478,14 @@ func (pool *TxPool) Content() (map[common.Address]types.Transactions, map[common
 
 // Pending retrieves all currently processable transactions, grouped by origin
 // account and sorted by nonce. The returned transaction set is a copy and can be
-// freely modified by calling code.
+// freely modified by calling code. 返回pending中的交易，每个账户下的交易都是按照nonce排序好了的
 func (pool *TxPool) Pending() (map[common.Address]types.Transactions, error) {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
 	pending := make(map[common.Address]types.Transactions)
 	for addr, list := range pool.pending {
-		pending[addr] = list.Flatten()
+		pending[addr] = list.Flatten()  // 按照nonce排序
 	}
 	return pending, nil
 }

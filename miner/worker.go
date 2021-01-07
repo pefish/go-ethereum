@@ -720,14 +720,14 @@ func (w *worker) updateSnapshot() {
 }
 
 func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Address) ([]*types.Log, error) {
-	snap := w.current.state.Snapshot()
+	snap := w.current.state.Snapshot()  // 状态快照
 
 	receipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &coinbase, w.current.gasPool, w.current.state, w.current.header, tx, &w.current.header.GasUsed, *w.chain.GetVMConfig())
 	if err != nil {
-		w.current.state.RevertToSnapshot(snap)
+		w.current.state.RevertToSnapshot(snap)  // 恢复状态
 		return nil, err
 	}
-	w.current.txs = append(w.current.txs, tx)
+	w.current.txs = append(w.current.txs, tx)  // 执行成功了放进来
 	w.current.receipts = append(w.current.receipts, receipt)
 
 	return receipt.Logs, nil
@@ -740,12 +740,12 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 	}
 
 	if w.current.gasPool == nil {
-		w.current.gasPool = new(core.GasPool).AddGas(w.current.header.GasLimit)
+		w.current.gasPool = new(core.GasPool).AddGas(w.current.header.GasLimit)  // 设置一个gas的池子给这个块中所有交易执行用
 	}
 
 	var coalescedLogs []*types.Log
 
-	for {
+	for {  // 处理heads中的每一笔交易
 		// In the following three cases, we will interrupt the execution of the transaction.
 		// (1) new head block event arrival, the interrupt signal is 1
 		// (2) worker start or restart, the interrupt signal is 1
@@ -767,12 +767,12 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 			return atomic.LoadInt32(interrupt) == commitInterruptNewHead
 		}
 		// If we don't have enough gas for any further transactions then we're done
-		if w.current.gasPool.Gas() < params.TxGas {
+		if w.current.gasPool.Gas() < params.TxGas {  // 如果这个块的gas剩下不到21000个，则代表这个块装不下更多交易了
 			log.Trace("Not enough gas for further transactions", "have", w.current.gasPool, "want", params.TxGas)
 			break
 		}
 		// Retrieve the next transaction and abort if all done
-		tx := txs.Peek()
+		tx := txs.Peek()  // 拿出heads中第一笔交易，heads中的交易已经排序好了，第一笔就是price最高、time最早、nonce最前面的交易
 		if tx == nil {
 			break
 		}
@@ -792,14 +792,14 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 		// Start executing the transaction
 		w.current.state.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
 
-		logs, err := w.commitTransaction(tx, coinbase)
+		logs, err := w.commitTransaction(tx, coinbase)  // 提交并执行交易，产生日志
 		switch {
 		case errors.Is(err, core.ErrGasLimitReached):
 			// Pop the current out-of-gas transaction without shifting in the next from the account
 			log.Trace("Gas limit exceeded for current block", "sender", from)
 			txs.Pop()
 
-		case errors.Is(err, core.ErrNonceTooLow):
+		case errors.Is(err, core.ErrNonceTooLow):  // nonce太低了，放入这个账户下的下一笔
 			// New head notification data race between the transaction pool and miner, shift
 			log.Trace("Skipping transaction with low nonce", "sender", from, "nonce", tx.Nonce())
 			txs.Shift()
@@ -809,7 +809,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 			log.Trace("Skipping account with hight nonce", "sender", from, "nonce", tx.Nonce())
 			txs.Pop()
 
-		case errors.Is(err, nil):
+		case errors.Is(err, nil):  // 执行都没有问题，则从heads中移除这笔交易并且拿一笔这个账户下的下一笔交易按优先级放入heads
 			// Everything ok, collect the logs and shift in the next transaction from the same account
 			coalescedLogs = append(coalescedLogs, logs...)
 			w.current.tcount++
@@ -865,10 +865,10 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 	}
 
 	num := parent.Number()
-	header := &types.Header{
+	header := &types.Header{  // 初始化一个区块头
 		ParentHash: parent.Hash(),
 		Number:     num.Add(num, common.Big1),
-		GasLimit:   core.CalcGasLimit(parent, w.config.GasFloor, w.config.GasCeil),
+		GasLimit:   core.CalcGasLimit(parent, w.config.GasFloor, w.config.GasCeil),  // 计算这个块最多能消耗多少gas
 		Extra:      w.extra,
 		Time:       uint64(timestamp),
 	}
@@ -972,7 +972,7 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 			return
 		}
 	}
-	w.commit(uncles, w.fullTaskHook, true, tstart)
+	w.commit(uncles, w.fullTaskHook, true, tstart)  // 提交区块
 }
 
 // commit runs any post-transaction state modifications, assembles the final block
@@ -981,7 +981,7 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 	// Deep copy receipts here to avoid interaction between different tasks.
 	receipts := copyReceipts(w.current.receipts)
 	s := w.current.state.Copy()
-	block, err := w.engine.FinalizeAndAssemble(w.chain, w.current.header, s, w.current.txs, uncles, receipts)
+	block, err := w.engine.FinalizeAndAssemble(w.chain, w.current.header, s, w.current.txs, uncles, receipts)  // 组织出块数据
 	if err != nil {
 		return err
 	}
